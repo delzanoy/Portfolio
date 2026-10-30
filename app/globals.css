@@ -1,0 +1,29 @@
+@import "tailwindcss" source("./");
+
+
+html {
+  scroll-behavior: smooth;
+  background-color: black;
+}
+
+/* Performance optimizations for the ticker */
+.ticker-track {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .ticker-track {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
