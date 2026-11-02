@@ -16,12 +16,14 @@ export default function KushariFlowInspectorModal({ module, onClose }: KushariFl
     const [isPlaying, setIsPlaying] = useState(true);
     const [activeHotspot, setActiveHotspot] = useState<number | null>(null);
 
-    // Reset step index when module changes
-    useEffect(() => {
+    // Reset step index when module changes (adjusted during render, no effect needed)
+    const [prevModule, setPrevModule] = useState(module);
+    if (module !== prevModule) {
+        setPrevModule(module);
         setActiveStepIndex(0);
         setIsPlaying(true);
         setActiveHotspot(null);
-    }, [module]);
+    }
 
     // Auto-advance step timer if isPlaying is true
     useEffect(() => {

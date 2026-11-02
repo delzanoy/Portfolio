@@ -63,11 +63,6 @@ export function AssetDetails({ asset, onClose }: AssetDetailsProps) {
         return () => clearInterval(interval)
     }, [asset.id, tleRecords, simulatedTimeOffset])
 
-    if (!asset) return null
-
-    const altitude = asset.orbit.semiMajorAxis - 6371
-    const flag = ownerFlag(asset.owner)
-
     // Live screen-position tracking — reads from satelliteScreenPositions each frame
     // via rAF and drives motion values so the card follows the satellite smoothly
     // without triggering React re-renders.
@@ -90,6 +85,11 @@ export function AssetDetails({ asset, onClose }: AssetDetailsProps) {
         raf = requestAnimationFrame(tick)
         return () => cancelAnimationFrame(raf)
     }, [asset.id, rawX, rawY])
+
+    if (!asset) return null
+
+    const altitude = asset.orbit.semiMajorAxis - 6371
+    const flag = ownerFlag(asset.owner)
 
     const handleClose = () => {
         setSelectedLiveSatNoradId(null)

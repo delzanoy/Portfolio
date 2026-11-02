@@ -2,8 +2,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { m, useAnimation, useMotionValue, Variants, AnimatePresence } from 'framer-motion';
+import { m, useAnimationFrame, useMotionValue, Variants, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import ProgressiveImage from './ProgressiveImage';
 
 interface MediaItem {
     id: string;
@@ -36,9 +37,15 @@ export default function Ticker({ columns, className }: TickerProps) {
     } | null>(null);
     const [isHovered, setIsHovered] = useState(false);
 
+    const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
-    const controls = useAnimation();
     const x = useMotionValue(0);
+
+    // Manual scrolling: drag/swipe/trackpad add to the auto drift, then ease back to it
+    const userVelocity = useRef(0); // px/s added on top of the auto drift
+    const drag = useRef<{ startX: number; lastX: number; lastT: number; moved: boolean } | null>(null);
+    const suppressClick = useRef(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     const columnEntryVariants: Variants = {
         hidden: {
@@ -51,8 +58,8 @@ export default function Ticker({ columns, className }: TickerProps) {
             x: 0, // Glides into its natural flexbox position
             filter: 'blur(0px)',
             transition: {
-                delay: 1.8 + (i * 0.2), // Entrance starts after text; 0.2s between columns
-                duration: 1.5,
+                delay: 0.9 + (i * 0.1), // Entrance starts as the tagline reveals; 0.1s between columns
+                duration: 1.2,
                 ease: [0.215, 0.61, 0.355, 1], // Smooth "glide-in" easing
             }
         })
@@ -108,81 +115,98 @@ export default function Ticker({ columns, className }: TickerProps) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [zoomedMedia]);
 
+    // Keep x within one copy of the columns so the duplicated set loops seamlessly
+    const wrap = (value: number) => {
+        if (totalOriginalWidth <= 0) return value;
+        const r = value % totalOriginalWidth;
+        return r > 0 ? r - totalOriginalWidth : r;
+    };
+
+    // Auto drift: one loop per 50s, 4x slower on hover, paused while zoomed or for reduced motion
+    const entranceDelay = 900;
+    const mountedAt = useRef(0);
+    useAnimationFrame((t, delta) => {
+        if (!isMounted || columnWidths.length === 0 || drag.current) return;
+        if (!mountedAt.current) mountedAt.current = t;
+        const dt = Math.min(delta, 64) / 1000;
+
+        const loopDuration = isHovered ? 200 : 50;
+        const autoSpeed = isReducedMotion || zoomedMedia || t - mountedAt.current < entranceDelay
+            ? 0
+            : totalOriginalWidth / loopDuration;
+
+        // Fling momentum decays back to the auto drift
+        userVelocity.current *= Math.exp(-4 * dt);
+        if (Math.abs(userVelocity.current) < 1) userVelocity.current = 0;
+
+        const v = -autoSpeed + userVelocity.current;
+        if (v !== 0) x.set(wrap(x.get() + v * dt));
+    });
+
+    // Trackpad / shift+wheel horizontal scrolling. Vertical wheel still scrolls the page.
     useEffect(() => {
-        if (!isMounted || isReducedMotion || columnWidths.length === 0) return;
+        const el = containerRef.current;
+        if (!el) return;
+        const onWheel = (e: WheelEvent) => {
+            const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX;
+            if (Math.abs(dx) <= Math.abs(e.shiftKey ? 0 : e.deltaY)) return;
+            e.preventDefault(); // stop browser back/forward swipe
+            userVelocity.current = 0;
+            x.set(wrap(x.get() - dx));
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMounted, totalOriginalWidth]);
 
-        const animationDuration = 50;
+    // Drag (mouse) and swipe (touch). A small threshold keeps taps working as clicks.
+    const handlePointerDown = (e: React.PointerEvent) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        drag.current = { startX: e.clientX, lastX: e.clientX, lastT: e.timeStamp, moved: false };
+        userVelocity.current = 0;
+    };
 
-        // Start moving horizontally almost immediately
-        // but with a slight delay so the first column has a chance to start its blur-in
-        controls.start({
-            x: [0, -totalOriginalWidth],
-            transition: {
-                x: {
-                    delay: 1.8, // Matches the start of the first column appearance
-                    duration: animationDuration,
-                    ease: 'linear',
-                    repeat: Infinity,
-                },
-            },
-        });
-    }, [isMounted, isReducedMotion, controls, totalOriginalWidth, columnWidths.length]);
+    const handlePointerMove = (e: React.PointerEvent) => {
+        const d = drag.current;
+        if (!d) return;
+        if (!d.moved) {
+            if (Math.abs(e.clientX - d.startX) < 6) return;
+            d.moved = true;
+            setIsDragging(true);
+            containerRef.current?.setPointerCapture(e.pointerId);
+        }
+        const dx = e.clientX - d.lastX;
+        const dt = Math.max(e.timeStamp - d.lastT, 1) / 1000;
+        x.set(wrap(x.get() + dx));
+        userVelocity.current = dx / dt;
+        d.lastX = e.clientX;
+        d.lastT = e.timeStamp;
+    };
 
-    // Handle hover - Slower animation
+    const handlePointerUp = (e: React.PointerEvent) => {
+        const d = drag.current;
+        drag.current = null;
+        if (!d?.moved) {
+            userVelocity.current = 0;
+            return;
+        }
+        suppressClick.current = true;
+        setIsDragging(false);
+        // No fling if the pointer rested before release
+        if (e.timeStamp - d.lastT > 80) userVelocity.current = 0;
+        userVelocity.current = Math.max(-4000, Math.min(4000, userVelocity.current));
+    };
+
+    // Hover slows the drift
     const handleHoverStart = () => {
         if (isMobile || zoomedMedia) return;
         setIsHovered(true);
-        const slowDuration = 200; // 4x slower than normal 50s
-        controls.start({
-            x: [x.get(), x.get() - totalOriginalWidth],
-            transition: {
-                x: {
-                    duration: slowDuration,
-                    ease: 'linear',
-                    repeat: Infinity
-                }
-            },
-        });
     };
 
     const handleHoverEnd = () => {
         if (isMobile || zoomedMedia) return;
         setIsHovered(false);
-        // Resume animation at normal speed
-        const animationDuration = 50;
-        controls.start({
-            x: [x.get(), x.get() - totalOriginalWidth],
-            transition: {
-                x: {
-                    duration: animationDuration,
-                    ease: 'linear',
-                    repeat: Infinity
-                }
-            },
-        });
     };
-
-    // Pause animation when media is zoomed
-    useEffect(() => {
-        if (!isMounted || isReducedMotion || columnWidths.length === 0) return;
-
-        if (zoomedMedia) {
-            controls.stop();
-        } else {
-            // Resume animation - respect hover state
-            const animationDuration = isHovered ? 200 : 180;
-            controls.start({
-                x: [x.get(), x.get() - totalOriginalWidth],
-                transition: {
-                    x: {
-                        duration: animationDuration,
-                        ease: 'linear',
-                        repeat: Infinity
-                    }
-                },
-            });
-        }
-    }, [zoomedMedia, isHovered, isMounted, isReducedMotion, controls, totalOriginalWidth, columnWidths.length, x]);
 
     if (!isMounted || columnWidths.length === 0) {
         return <div style={{ height: '800px', width: '100vw' }} className={className} />;
@@ -190,6 +214,19 @@ export default function Ticker({ columns, className }: TickerProps) {
 
     return (
         <div
+            ref={containerRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onDragStart={(e) => e.preventDefault()}
+            onClickCapture={(e) => {
+                // A drag shouldn't open the zoom view
+                if (suppressClick.current) {
+                    suppressClick.current = false;
+                    e.stopPropagation();
+                }
+            }}
             style={{
                 position: 'relative',
                 width: '100vw',
@@ -197,12 +234,14 @@ export default function Ticker({ columns, className }: TickerProps) {
                 overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
+                touchAction: 'pan-y', // vertical swipes still scroll the page
+                cursor: isDragging ? 'grabbing' : undefined,
+                userSelect: isDragging ? 'none' : undefined,
             }}
             className={className}
         >
             <m.div
                 ref={trackRef}
-                animate={controls}
                 style={{
                     x,
                     width: totalDuplicatedWidth,
@@ -335,7 +374,7 @@ function TickerVideo({ src, poster }: { src: string; poster?: string }) {
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             style={{
                 width: '100%',
                 height: '100%',
@@ -384,10 +423,9 @@ function MediaItem({
             onClick={() => onSelectMedia(media, uniqueId)}
         >
             {media.type === 'image' ? (
-                <Image
+                <ProgressiveImage
                     src={media.src}
                     alt={media.alt}
-                    fill
                     style={{
                         objectFit: 'cover',
                         width: '100%',

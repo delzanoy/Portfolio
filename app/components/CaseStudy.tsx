@@ -7,7 +7,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useInView } from 'framer-motion';
 import Button from './Button';
-import Image from 'next/image';
+import ProgressiveImage from './ProgressiveImage';
 import dynamic from 'next/dynamic';
 
 const EarthPreview = dynamic(() => import('./telescope-src/components/Earth'), {
@@ -83,6 +83,8 @@ const CaseStudy = React.memo(function CaseStudy({
         margin: "0px 0px -100px 0px", // Adjust this value
         amount: 0.5 // Adjust this value
     });
+    // Defer the three.js globe (and its texture/models) until the card is near the viewport
+    const isNearView = useInView(rectRef, { once: true, margin: "400px 0px" });
 
     const mainImage = images[0];
 
@@ -117,18 +119,17 @@ const CaseStudy = React.memo(function CaseStudy({
                 <m.div
                     layoutId={id === 'telescope' ? undefined : `image-${id}`}
                     transition={{ layout: { duration: 0.72, ease: [0.22, 1, 0.36, 1] } }}
-                    className={cn("w-full aspect-[4/3] overflow-hidden relative", id === 'telescope' ? "bg-black" : "bg-white/5")}
+                    className={cn("w-full aspect-[2000/1366] overflow-hidden relative", id === 'telescope' ? "bg-black" : "bg-white/5")}
                     style={isOpen ? { pointerEvents: 'none' } : undefined}
                 >
                     {id === 'telescope' ? (
                         <div className="w-full h-full relative pointer-events-none">
-                            <EarthPreview isPreview={true} />
+                            {isNearView && <EarthPreview isPreview={true} />}
                         </div>
                     ) : mainImage ? (
-                        <Image
+                        <ProgressiveImage
                             src={mainImage}
                             alt={title}
-                            fill
                             className="object-cover object-left-top"
                             sizes="(max-width: 768px) 100vw, 50vw"
                             priority={priority}

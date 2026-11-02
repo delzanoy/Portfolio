@@ -1,5 +1,6 @@
 import { Asset, TleRecord } from '../types'
-let ucsData: Record<string, any> = {};
+type UcsEntry = { country: string; purpose: string; detailedPurpose?: string; users: string }
+let ucsData: Record<string, UcsEntry> = {};
 
 if (typeof window !== 'undefined') {
   fetch('/telescope-app/data/ucs.json')
