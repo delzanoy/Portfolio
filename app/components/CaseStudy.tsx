@@ -83,6 +83,8 @@ const CaseStudy = React.memo(function CaseStudy({
         margin: "0px 0px -100px 0px", // Adjust this value
         amount: 0.5 // Adjust this value
     });
+    // Defer the three.js globe (and its texture/models) until the card is near the viewport
+    const isNearView = useInView(rectRef, { once: true, margin: "400px 0px" });
 
     const mainImage = images[0];
 
@@ -122,7 +124,7 @@ const CaseStudy = React.memo(function CaseStudy({
                 >
                     {id === 'telescope' ? (
                         <div className="w-full h-full relative pointer-events-none">
-                            <EarthPreview isPreview={true} />
+                            {isNearView && <EarthPreview isPreview={true} />}
                         </div>
                     ) : mainImage ? (
                         <Image

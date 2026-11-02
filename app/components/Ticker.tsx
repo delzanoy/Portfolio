@@ -335,7 +335,7 @@ function TickerVideo({ src, poster }: { src: string; poster?: string }) {
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             style={{
                 width: '100%',
                 height: '100%',
