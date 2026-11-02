@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { EmbeddedTweet, TweetSkeleton } from 'react-tweet';
 import type { Tweet } from 'react-tweet/api';
+import type { CaseStudyData } from '../data/caseStudies';
 import ImageGallery from './ImageGallery';
 import LinkPreview from './case-study-components/LinkPreview';
 import SectionWrapper from './case-study-components/SectionWrapper';
@@ -50,7 +51,7 @@ interface KushariCaseStudyProps {
         chips: string[];
         description: string;
         images: string[];
-        actions?: any[];
+        actions?: CaseStudyData['actions'];
         note?: string;
     };
     tweet?: Tweet;
@@ -598,7 +599,7 @@ export default function KushariCaseStudy({ data, tweet: initialTweet }: KushariC
                                     <div className='space-y-1 md:row-start-2 md:col-start-1'>
                                         <h4 id="mpc-wallet" className="text-lg font-[var(--font-tasa)] font-regular text-white">MPC Vaults (MPC wallets)</h4>
                                         <p className="text-[14px] md:text-[15px] leading-[1.6em] text-white/70 font-[var(--font-geist-sans)] max-w-2xl">
-                                            Kushari's flagship offering. MPC replaces the single private key with cryptographic shares held by people/devices/services. A threshold of shares collaboratively signs without reconstructing the key.
+                                            Kushari&rsquo;s flagship offering. MPC replaces the single private key with cryptographic shares held by people/devices/services. A threshold of shares collaboratively signs without reconstructing the key.
                                         </p>
                                         <ul className="list-disc pl-4 space-y-2 text-white/70 font-[var(--font-geist-sans)] max-w-md">
                                             <li>Custody model: Distributed shares; threshold signing.</li>
@@ -626,7 +627,7 @@ export default function KushariCaseStudy({ data, tweet: initialTweet }: KushariC
                                             <li>Capabilities: Propose → Review → Sign → Execute with gas and nonce management.</li>
                                             <li>Policies: On‑chain threshold (e.g., 3‑of‑5); Kushari mirrors constraints with transaction limits, token/network allow/deny lists.</li>
                                             <li>Operational notes: Requires gas; signature collection and nonce sequencing by Kushari, enabling transaction that is ready to execute to be actioned.</li>
-                                            <li>Auditability: On‑chain events and signatures plus Kushari's immutable logs.</li>
+                                            <li>Auditability: On‑chain events and signatures plus Kushari&rsquo;s immutable logs.</li>
                                             <li>Setup: Created in Gnosis Safe; imported into Kushari.</li>
                                             <li>Network support: Inherent from Gnosis Safe.</li>
                                         </ul>
@@ -1154,7 +1155,7 @@ export default function KushariCaseStudy({ data, tweet: initialTweet }: KushariC
                                     <p className="text-[14px] md:text-[15px] leading-[1.6em] text-white/70 font-[var(--font-geist-sans)] max-w-2xl">
                                         The rest of this story is still in the inkwell. Got thoughts, feedback, or just want to talk shop?
                                         <br className="hidden md:block" />
-                                        I'm all ears at{' '}
+                                        I&rsquo;m all ears at{' '}
                                         <span
                                             onClick={copyEmail}
                                             className="relative inline-block text-blue-400 font-semibold cursor-pointer hover:text-blue-300 transition-colors border-b border-blue-400/30 hover:border-blue-300 group/email"

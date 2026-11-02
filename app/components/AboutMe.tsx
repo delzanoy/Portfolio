@@ -1,7 +1,7 @@
 'use client';
 
 import { m, useScroll, useTransform, useSpring } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { RevealLine } from './TextReveal';
 import Button from './Button';
 
@@ -50,13 +50,12 @@ function useIsDesktop() {
 /* ----------------------------------------
    Main Export
 ---------------------------------------- */
+const noopSubscribe = () => () => { };
+
 export default function AboutMe() {
     const isDesktop = useIsDesktop();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    // false during server render/hydration, true on the client
+    const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
     if (!mounted) return null;
 

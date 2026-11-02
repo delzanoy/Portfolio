@@ -7,10 +7,12 @@ import KushariFlowGridCard from './case-study-components/KushariFlowGridCard';
 import KushariFlowInspectorModal from './case-study-components/KushariFlowInspectorModal';
 import { kushariFlowModules, type KushariFlowModule } from '../data/kushariFlowsData';
 import Button from './Button';
+import type { Tweet } from 'react-tweet/api';
+import type { CaseStudyData } from '../data/caseStudies';
 
 interface KushariCaseStudyV2Props {
-    data?: any;
-    tweet?: any;
+    data?: CaseStudyData;
+    tweet?: Tweet;
 }
 
 export default function KushariCaseStudyV2({ data }: KushariCaseStudyV2Props) {

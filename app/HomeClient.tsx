@@ -10,7 +10,7 @@ import type { Tweet } from 'react-tweet/api';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import BookShelf, { Book } from './components/BookShelf';
 import { m, AnimatePresence } from 'framer-motion';
-import { caseStudies as staticCaseStudies } from './data/caseStudies';
+import { caseStudies as staticCaseStudies, type CaseStudyData } from './data/caseStudies';
 
 const KushariCaseStudy = dynamic(() => import("./components/KushariCaseStudyV2"), {
     loading: () => null,
@@ -309,21 +309,10 @@ function HomeContent({ tweetData }: HomeClientProps) {
     const router = useRouter();
     const pathname = usePathname();
 
-    const [selectedCaseStudy, setSelectedCaseStudy] = useState<{
-        id: string;
-        title: string;
-        chips: string[];
-        description: string;
-        images: string[];
-        actions?: any[];
-        note?: string;
-        priority?: boolean;
-        clickable?: boolean;
-        hidden?: boolean;
-    } | null>(null);
+    const [selectedCaseStudy, setSelectedCaseStudy] = useState<CaseStudyData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const openCaseStudy = useCallback((cs: any) => {
+    const openCaseStudy = useCallback((cs: CaseStudyData) => {
         setSelectedCaseStudy(cs);
         setIsModalOpen(true);
         // Update URL
@@ -340,9 +329,12 @@ function HomeContent({ tweetData }: HomeClientProps) {
         router.push(pathname, { scroll: false });
     }, [pathname, router, searchParams]);
 
-    // Handle initial URL parameter and browser back/forward
-    useEffect(() => {
-        const workId = searchParams.get('work');
+    // Handle initial URL parameter and browser back/forward.
+    // Adjusts state during render whenever ?work= changes (no effect needed).
+    const workId = searchParams.get('work');
+    const [syncedWorkId, setSyncedWorkId] = useState<string | null | undefined>(undefined);
+    if (workId !== syncedWorkId) {
+        setSyncedWorkId(workId);
         if (workId) {
             const cs = caseStudies.find(c => c.id === workId);
             if (cs && cs.clickable) {
@@ -351,12 +343,9 @@ function HomeContent({ tweetData }: HomeClientProps) {
             }
         } else {
             setIsModalOpen(false);
-            // If we are already closed, clear the selected study
-            if (!isModalOpen) {
-                setSelectedCaseStudy(null);
-            }
+            setSelectedCaseStudy(null);
         }
-    }, [searchParams, caseStudies, isModalOpen]); // Added isModalOpen to dependencies
+    }
 
     useEffect(() => {
         if ('scrollRestoration' in history) {

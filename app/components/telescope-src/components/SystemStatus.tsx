@@ -13,12 +13,18 @@ export function SystemStatus() {
     const triggerRefresh = useStore(s => s.triggerRefresh)
     const simulatedTimeOffset = useStore(s => s.simulatedTimeOffset)
 
+    // Client-only clock (avoids a server/client time mismatch); first tick on the next frame
     useEffect(() => {
-        const now = new Date()
-        setCurrentTime(now)
-        setLastRefreshed(now)
+        const first = requestAnimationFrame(() => {
+            const now = new Date()
+            setCurrentTime(now)
+            setLastRefreshed(now)
+        })
         const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-        return () => clearInterval(timer)
+        return () => {
+            cancelAnimationFrame(first)
+            clearInterval(timer)
+        }
     }, [])
 
     const formatTime = (date: Date) => {

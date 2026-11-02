@@ -20,6 +20,8 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { mesh } from 'topojson-client'
 import type { Topology, GeometryCollection, GeometryObject } from 'topojson-specification'
+
+type CountryFeature = { id?: string | number; properties?: { name?: string } }
 import { useStore } from '../store/useStore'
 
 // 50m resolution — good detail, ~300KB
@@ -95,7 +97,7 @@ function buildAfricaGeometry(topology: Topology): THREE.BufferGeometry {
   const africaMesh = mesh(
     topology,
     obj,
-    (a: any, b: any) => {
+    (a: GeometryObject, b: GeometryObject) => {
       const aId = Number(a.id)
       const bId = Number(b.id)
       return AFRICA_IDS.has(aId) || AFRICA_IDS.has(bId)
@@ -121,7 +123,7 @@ function buildAfricaGeometry(topology: Topology): THREE.BufferGeometry {
 /** Build highlighted country geometry for a given topoName */
 function buildHighlightGeometry(topology: Topology, topoName: string): THREE.BufferGeometry {
   const obj = topology.objects['countries'] as GeometryCollection
-  const features = (obj.geometries || []) as any[]
+  const features = (obj.geometries || []) as CountryFeature[]
 
   // Find the feature whose properties.name matches
   const matchedIds = new Set<number>()
@@ -141,7 +143,7 @@ function buildHighlightGeometry(topology: Topology, topoName: string): THREE.Buf
   const highlighted = mesh(
     topology,
     obj,
-    (a: any, b: any) => {
+    (a: GeometryObject, b: GeometryObject) => {
       const aId = Number(a.id)
       const bId = Number(b.id)
       return matchedIds.has(aId) || matchedIds.has(bId)
@@ -205,15 +207,15 @@ export function getCountryBounds(
 ): { minLat: number; maxLat: number; minLon: number; maxLon: number } | null {
   const topology = worldData as unknown as Topology
   const obj = topology.objects['countries'] as GeometryCollection
-  const features = (obj.geometries || []) as any[]
+  const features = (obj.geometries || []) as CountryFeature[]
 
   const matched = features.find(
-    (f: any) => (f.properties?.name ?? '').toLowerCase().includes(topoName.toLowerCase())
+    (f) => (f.properties?.name ?? '').toLowerCase().includes(topoName.toLowerCase())
   )
   if (!matched) return null
 
   // Use the mesh to get the actual arc coordinates
-  const highlighted = mesh(topology, obj, (a: any) => Number(a.id) === Number(matched.id))
+  const highlighted = mesh(topology, obj, (a: GeometryObject) => Number(a.id) === Number(matched.id))
   const geom = highlighted as unknown as { type: string; coordinates: Ring[] }
 
   let minLat = Infinity, maxLat = -Infinity

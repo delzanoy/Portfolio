@@ -85,17 +85,24 @@ function EarthModel() {
     const gmstStart = useRef<number | null>(null)
     const clockStart = useRef<number | null>(null)
     const mapLonOffsetRef = useRef(mapLonOffset)
-    mapLonOffsetRef.current = mapLonOffset
+    useEffect(() => {
+        mapLonOffsetRef.current = mapLonOffset
+    }, [mapLonOffset])
 
     // Clone the scene and clone materials for this instance
     const clonedScene = useMemo(() => {
-        texture.flipY = false
+        // Clone rather than mutate the cached texture returned by useTexture
+        const map = texture.clone()
+        map.flipY = false
+        map.needsUpdate = true
         const clone = scene.clone()
-        clone.traverse((child: any) => {
-            if (child.isMesh) {
-                child.material = child.material.clone()
-                child.material.map = texture
-                child.material.needsUpdate = true
+        clone.traverse((child) => {
+            const meshChild = child as THREE.Mesh
+            if (meshChild.isMesh) {
+                const material = (meshChild.material as THREE.MeshStandardMaterial).clone()
+                material.map = map
+                material.needsUpdate = true
+                meshChild.material = material
             }
         })
         return clone
