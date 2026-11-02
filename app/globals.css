@@ -27,3 +27,9 @@ html {
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* Full-resolution swap in ProgressiveImage */
+@keyframes progressive-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

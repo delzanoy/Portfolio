@@ -116,13 +116,13 @@ function DesktopAboutMe() {
                     <div className="flex flex-col">
                         <RevealLine
                             text="Delanoy"
-                            delay={0.2}
+                            delay={0}
                             as="h1"
                             className="text-[38px] leading-[1em] tracking-[-0.04em] font-[var(--font-tasa)] font-bold text-white"
                         />
                         <RevealLine
                             text="Product Designer × Builder"
-                            delay={0.6}
+                            delay={0.25}
                             as="h2"
                             className="text-xl font-medium text-white font-[var(--font-tasa)]"
                         />
@@ -130,7 +130,7 @@ function DesktopAboutMe() {
                     <m.div style={{ opacity: line3Opacity, filter: line3Blur }}>
                         <RevealLine
                             text="Designing systems that help users win & businesses succeed."
-                            delay={1.2}
+                            delay={0.5}
                             className="text-md text-white font-[var(--font-instrument)] italic"
                         />
                     </m.div>
@@ -167,7 +167,7 @@ function DesktopAboutMe() {
                     animate={{ opacity: 1, filter: 'blur(0px)' }}
                     layout
                     transition={{
-                        delay: 1.6,
+                        delay: 1.2,
                         duration: 0.8,
                         layout: { type: 'spring', stiffness: 200, damping: 25 }
                     }}
@@ -302,7 +302,7 @@ function MobileAboutMe() {
                     animate={{ opacity: 1, filter: 'blur(0px)' }}
                     layout
                     transition={{
-                        delay: 1.6,
+                        delay: 1.2,
                         duration: 0.8,
                         layout: { type: 'spring', stiffness: 200, damping: 25 }
                     }}

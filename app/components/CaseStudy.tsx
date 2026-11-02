@@ -7,7 +7,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useInView } from 'framer-motion';
 import Button from './Button';
-import Image from 'next/image';
+import ProgressiveImage from './ProgressiveImage';
 import dynamic from 'next/dynamic';
 
 const EarthPreview = dynamic(() => import('./telescope-src/components/Earth'), {
@@ -119,7 +119,7 @@ const CaseStudy = React.memo(function CaseStudy({
                 <m.div
                     layoutId={id === 'telescope' ? undefined : `image-${id}`}
                     transition={{ layout: { duration: 0.72, ease: [0.22, 1, 0.36, 1] } }}
-                    className={cn("w-full aspect-[4/3] overflow-hidden relative", id === 'telescope' ? "bg-black" : "bg-white/5")}
+                    className={cn("w-full aspect-[2000/1366] overflow-hidden relative", id === 'telescope' ? "bg-black" : "bg-white/5")}
                     style={isOpen ? { pointerEvents: 'none' } : undefined}
                 >
                     {id === 'telescope' ? (
@@ -127,10 +127,9 @@ const CaseStudy = React.memo(function CaseStudy({
                             {isNearView && <EarthPreview isPreview={true} />}
                         </div>
                     ) : mainImage ? (
-                        <Image
+                        <ProgressiveImage
                             src={mainImage}
                             alt={title}
-                            fill
                             className="object-cover object-left-top"
                             sizes="(max-width: 768px) 100vw, 50vw"
                             priority={priority}

@@ -231,8 +231,8 @@ const sampleColumns = [
                 type: 'image' as const,
                 src: '/media/hero.webp',
                 alt: 'Design Process Documentation',
-                width: 484,
-                height: 484,
+                width: 2000,
+                height: 1366,
             },
             {
                 id: 'vid2',
