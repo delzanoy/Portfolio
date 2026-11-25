@@ -1,11 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import { ExternalLink, ShieldCheck, Layers, Zap, Code2, LayoutGrid } from 'lucide-react';
-import KushariFlowGridCard from './case-study-components/KushariFlowGridCard';
-import KushariFlowInspectorModal from './case-study-components/KushariFlowInspectorModal';
-import { kushariFlowModules, type KushariFlowModule } from '../data/kushariFlowsData';
+import KushariTileGrid from './case-study-components/KushariTileGrid';
 import Button from './Button';
 import type { Tweet } from 'react-tweet/api';
 import type { CaseStudyData } from '../data/caseStudies';
@@ -16,8 +13,6 @@ interface KushariCaseStudyV2Props {
 }
 
 export default function KushariCaseStudyV2({ data }: KushariCaseStudyV2Props) {
-    const [selectedModule, setSelectedModule] = useState<KushariFlowModule | null>(null);
-
     return (
         <div className="min-h-screen bg-[#070707] text-white rounded-[24px] overflow-hidden">
 
@@ -135,36 +130,10 @@ export default function KushariCaseStudyV2({ data }: KushariCaseStudyV2Props) {
                 </div>
             </div>
 
-            {/* Main Spatial Grid Section */}
+            {/* One idea per tile */}
             <div className="max-w-7xl mx-auto px-5 py-10 md:px-8 md:py-16">
-
-                {/* Spatial Grid Layout */}
-                <m.div
-                    layout
-                    className={
-                        kushariFlowModules.length === 1
-                            ? "max-w-4xl mx-auto w-full"
-                            : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                    }
-                >
-                    <AnimatePresence>
-                        {kushariFlowModules.map((module) => (
-                            <KushariFlowGridCard
-                                key={module.id}
-                                module={module}
-                                onSelect={(m) => setSelectedModule(m)}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </m.div>
-
+                <KushariTileGrid />
             </div>
-
-            {/* Zoomed Detail Inspector Modal */}
-            <KushariFlowInspectorModal
-                module={selectedModule}
-                onClose={() => setSelectedModule(null)}
-            />
 
         </div>
     );

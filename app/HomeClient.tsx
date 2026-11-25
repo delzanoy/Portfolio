@@ -9,6 +9,8 @@ import CaseStudyDetails from "./components/CaseStudyDetails";
 import type { Tweet } from 'react-tweet/api';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import BookShelf, { Book } from './components/BookShelf';
+import CareerTree from './components/CareerTree';
+import ClosingStatement from './components/ClosingStatement';
 import { m, AnimatePresence } from 'framer-motion';
 import { caseStudies as staticCaseStudies, type CaseStudyData } from './data/caseStudies';
 
@@ -27,9 +29,6 @@ const CaseStudy = dynamic(() => import("./components/CaseStudy"), {
     ssr: false
 });
 
-const Description = dynamic(() => import("./components/Description").then(mod => mod.Description), {
-    ssr: false
-});
 
 interface HomeClientProps {
     tweetData?: Tweet;
@@ -356,10 +355,10 @@ function HomeContent({ tweetData }: HomeClientProps) {
 
     return (
         <div className="flex flex-col">
-            <Ticker columns={sampleColumns} className="mb-75" />
+            <Ticker columns={sampleColumns} className="mb-16 md:mb-75" />
             <AboutMe />
             <div
-                className="grid grid-cols-1 gap-8 max-w-[1360px] mx-auto mb-75 min-[1360px]:grid-cols-2 px-[12px] sm:px-6 lg:px-0">
+                className="grid grid-cols-1 gap-8 max-w-[1360px] mx-auto mb-24 md:mb-75 min-[1360px]:grid-cols-2 px-[12px] sm:px-6 lg:px-0">
                 {caseStudies.filter(cs => !cs.hidden).map((cs) => (
                     <CaseStudy
                         key={cs.id}
@@ -404,7 +403,10 @@ function HomeContent({ tweetData }: HomeClientProps) {
                 <BookShelf books={books} />
             </div>
 
-            <Description className="pb-65" />
+            <div className="pt-16 md:pt-28">
+                <CareerTree />
+            </div>
+            <ClosingStatement emojiSet="noto" cursor="repel" className="pb-65 pt-24 md:pt-48" />
             <ScrollIndicator />
 
             <CaseStudyDetails

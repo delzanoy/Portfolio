@@ -80,8 +80,9 @@ const CaseStudy = React.memo(function CaseStudy({
     };
     const isInView = useInView(rectRef, {
         once: true,
-        margin: "0px 0px -100px 0px", // Adjust this value
-        amount: 0.5 // Adjust this value
+        // Start as the card's top edge enters, so tall cards on phones don't wait half a screen
+        margin: "0px 0px -40px 0px",
+        amount: 0.1
     });
     // Defer the three.js globe (and its texture/models) until the card is near the viewport
     const isNearView = useInView(rectRef, { once: true, margin: "400px 0px" });
@@ -105,7 +106,7 @@ const CaseStudy = React.memo(function CaseStudy({
                 // layoutId removed – only the image will animate
                 initial={{ opacity: 0, filter: "blur(10px)", y: 20 }}
                 animate={isInView ? { opacity: 1, filter: "blur(0px)", y: 0 } : {}}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 className="flex flex-col w-full gap-4 pb-16 min-[1360px]:p-6 min-[1360px]:-m-6"
             >
                 {/* Background Layer (Moved inside p-6 -m-6 wrapper) */}
