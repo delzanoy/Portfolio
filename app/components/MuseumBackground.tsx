@@ -2,10 +2,13 @@
 
 import { motion, useScroll } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useMuseumLights } from "./museumLights";
 
 export default function MuseumBackground({ className }: { className?: string }) {
   const { scrollYProgress } = useScroll();
-  const [atBottom, setAtBottom] = useState(false);
+  const [nearBottom, setAtBottom] = useState(false);
+  // On near the bottom, or while a section asks for them (LightsWhileInView)
+  const atBottom = useMuseumLights() || nearBottom;
 
   useEffect(() => {
     return scrollYProgress.on("change", (latest) => {

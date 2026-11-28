@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { m, useMotionValue, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { m, animate, useMotionValue, useReducedMotion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -29,7 +29,72 @@ interface CaseStudyAction {
     className?: string;
 }
 
+export interface CardGlowOptions {
+    /** Seconds after load before the light comes up */
+    delay: number;
+    /** Light colour when the card has no image to take it from (e.g. the globe) */
+    color?: string;
+    className?: string;
+}
+
+/* ----------------------------------------
+   Card glow
+   Light rising from the card's top edge, as if it were lit from below the
+   fold: a heavily blurred copy of its artwork (or a plain colour), centred on
+   the top edge so half of it spills up into whatever sits above. It fades
+   out as the card scrolls into view, so the light hands over to the card.
+---------------------------------------- */
+function CardGlow({
+    target,
+    image,
+    delay,
+    color,
+    className,
+}: CardGlowOptions & { target: React.RefObject<HTMLDivElement | null>; image?: string }) {
+    const reduce = useReducedMotion();
+    // Comes up once the page's opening has played
+    const intro = useMotionValue(0);
+    useEffect(() => {
+        if (reduce) {
+            intro.set(1);
+            return;
+        }
+        const controls = animate(intro, 1, { delay, duration: 2.2, ease: [0.22, 1, 0.36, 1] });
+        return () => controls.stop();
+    }, [delay, intro, reduce]);
+    // Gone by the time the card's top edge is halfway up the screen
+    const { scrollYProgress } = useScroll({ target, offset: ['start end', 'start 0.5'] });
+    const opacity = useTransform([intro, scrollYProgress], ([i, p]: number[]) => i * (1 - p));
+
+    return (
+        <m.div
+            aria-hidden
+            style={{ opacity }}
+            className={cn(
+                'pointer-events-none absolute inset-x-[4%] top-0 h-[min(56vh,520px)] -translate-y-1/2 mix-blend-screen',
+                className
+            )}
+        >
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: image
+                        ? `center / cover no-repeat url("${image.replace(/\.webp$/, '.sm.webp')}")`
+                        : `radial-gradient(ellipse at 50% 50%, ${color ?? 'rgba(105,160,255,1)'} 0%, rgba(80,120,255,0.35) 38%, transparent 66%)`,
+                    filter: image ? 'blur(72px) saturate(1.5)' : 'blur(36px)',
+                    // Soft all round: no edge of the copy shows through the blur
+                    maskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, #000 35%, transparent 100%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, #000 35%, transparent 100%)',
+                    opacity: image ? 0.7 : 0.62,
+                }}
+            />
+        </m.div>
+    );
+}
+
 interface CaseStudyProps {
+    /** Light the card from below the fold (see CardGlow) */
+    glow?: CardGlowOptions;
     title: string;
     chips: string[];
     description: string;
@@ -57,6 +122,7 @@ const CaseStudy = React.memo(function CaseStudy({
     id,
     isOpen = false,
     onClick,
+    glow,
 }: CaseStudyProps) {
     const rectRef = useRef<HTMLDivElement>(null);
     const [hovered, setHovered] = useState(false);
@@ -80,8 +146,9 @@ const CaseStudy = React.memo(function CaseStudy({
     };
     const isInView = useInView(rectRef, {
         once: true,
-        margin: "0px 0px -100px 0px", // Adjust this value
-        amount: 0.5 // Adjust this value
+        // Start as the card's top edge enters, so tall cards on phones don't wait half a screen
+        margin: "0px 0px -40px 0px",
+        amount: 0.1
     });
     // Defer the three.js globe (and its texture/models) until the card is near the viewport
     const isNearView = useInView(rectRef, { once: true, margin: "400px 0px" });
@@ -93,7 +160,14 @@ const CaseStudy = React.memo(function CaseStudy({
             ref={rectRef}
             onMouseMove={handleMouseMove}
             onMouseOver={checkInteractiveHover}
-            onMouseEnter={() => setHovered(true)}
+            onMouseEnter={(e) => {
+                // The card can arrive under a still pointer (scrolling, closing a case study,
+                // loading with the pointer already there): no mousemove, so take the position
+                // here too, or the tooltip shows at the corner
+                mouseX.set(e.clientX);
+                mouseY.set(e.clientY);
+                setHovered(true);
+            }}
             onMouseLeave={() => {
                 setHovered(false);
                 setIsChildHovered(false);
@@ -101,11 +175,19 @@ const CaseStudy = React.memo(function CaseStudy({
             onClick={onClick}
             className={cn("relative flex flex-col w-full cursor-pointer group", className)}
         >
+            {glow && (
+                <CardGlow
+                    {...glow}
+                    target={rectRef}
+                    // The globe card is drawn live, not from its image
+                    image={id === 'telescope' ? undefined : mainImage}
+                />
+            )}
             <m.div
                 // layoutId removed – only the image will animate
                 initial={{ opacity: 0, filter: "blur(10px)", y: 20 }}
                 animate={isInView ? { opacity: 1, filter: "blur(0px)", y: 0 } : {}}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 className="flex flex-col w-full gap-4 pb-16 min-[1360px]:p-6 min-[1360px]:-m-6"
             >
                 {/* Background Layer (Moved inside p-6 -m-6 wrapper) */}

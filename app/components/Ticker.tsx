@@ -25,9 +25,11 @@ interface TickerColumn {
 interface TickerProps {
     columns: TickerColumn[];
     className?: string;
+    /** The columns glide in when the ticker scrolls into view, instead of on page load */
+    enterOnView?: boolean;
 }
 
-export default function Ticker({ columns, className }: TickerProps) {
+export default function Ticker({ columns, className, enterOnView = false }: TickerProps) {
     const [isMounted, setIsMounted] = useState(false);
     const [isReducedMotion, setIsReducedMotion] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -36,6 +38,9 @@ export default function Ticker({ columns, className }: TickerProps) {
         layoutId: string;
     } | null>(null);
     const [isHovered, setIsHovered] = useState(false);
+    const [inView, setInView] = useState(false);
+    // On load, or (enterOnView) once it's on screen
+    const entered = !enterOnView || inView;
 
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
@@ -47,6 +52,8 @@ export default function Ticker({ columns, className }: TickerProps) {
     const suppressClick = useRef(false);
     const [isDragging, setIsDragging] = useState(false);
 
+    // On load the entrance waits for the tagline; in view it starts right away
+    const entryDelay = enterOnView ? 0.1 : 0.9;
     const columnEntryVariants: Variants = {
         hidden: {
             opacity: 0,
@@ -58,7 +65,7 @@ export default function Ticker({ columns, className }: TickerProps) {
             x: 0, // Glides into its natural flexbox position
             filter: 'blur(0px)',
             transition: {
-                delay: 0.9 + (i * 0.1), // Entrance starts as the tagline reveals; 0.1s between columns
+                delay: entryDelay + (i * 0.1), // 0.1s between columns
                 duration: 1.2,
                 ease: [0.215, 0.61, 0.355, 1], // Smooth "glide-in" easing
             }
@@ -95,6 +102,22 @@ export default function Ticker({ columns, className }: TickerProps) {
         };
     }, []);
 
+    // enterOnView: start the entrance once a fifth of the ticker is on screen
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!enterOnView || !isMounted || !el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (!entry.isIntersecting) return;
+                setInView(true);
+                observer.disconnect();
+            },
+            { threshold: 0.2 }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [enterOnView, isMounted]);
+
     // Calculate total width for animation
     const gap = 4;
     const totalOriginalWidth = columnWidths.reduce((sum, width) => sum + width + gap, 0) - gap;
@@ -122,11 +145,12 @@ export default function Ticker({ columns, className }: TickerProps) {
         return r > 0 ? r - totalOriginalWidth : r;
     };
 
-    // Auto drift: one loop per 50s, 4x slower on hover, paused while zoomed or for reduced motion
-    const entranceDelay = 900;
+    // Auto drift: one loop per 50s, 4x slower on hover, paused while zoomed or for reduced motion.
+    // Starts with the entrance.
+    const entranceDelay = entryDelay * 1000;
     const mountedAt = useRef(0);
     useAnimationFrame((t, delta) => {
-        if (!isMounted || columnWidths.length === 0 || drag.current) return;
+        if (!isMounted || !entered || columnWidths.length === 0 || drag.current) return;
         if (!mountedAt.current) mountedAt.current = t;
         const dt = Math.min(delta, 64) / 1000;
 
@@ -209,7 +233,7 @@ export default function Ticker({ columns, className }: TickerProps) {
     };
 
     if (!isMounted || columnWidths.length === 0) {
-        return <div style={{ height: '800px', width: '100vw' }} className={className} />;
+        return <div style={{ height: '800px', width: '100%' }} className={className} />;
     }
 
     return (
@@ -229,7 +253,8 @@ export default function Ticker({ columns, className }: TickerProps) {
             }}
             style={{
                 position: 'relative',
-                width: '100vw',
+                // Not 100vw: that includes the vertical scrollbar, so the page would scroll sideways
+                width: '100%',
                 height: '800px', // Fixed height of 800px
                 overflow: 'hidden',
                 display: 'flex',
@@ -264,7 +289,7 @@ export default function Ticker({ columns, className }: TickerProps) {
                             key={`${column.id}-${index}`}
                             custom={index}
                             initial={isInitialSet ? "hidden" : { opacity: 1, x: 0, filter: 'blur(0px)' }}
-                            animate="visible"
+                            animate={isInitialSet && !entered ? 'hidden' : 'visible'}
                             variants={columnEntryVariants}
                             style={{ flexShrink: 0 }}
                         >

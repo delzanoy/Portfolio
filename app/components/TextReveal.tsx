@@ -46,6 +46,16 @@ const childVariants: Variants = {
 export const RevealLine = ({ text, delay, className, as = 'div' }: RevealLineProps) => {
     const Component = m[as];
 
+    // Group characters into words so a line can only wrap between words.
+    // Each word is a plain nowrap inline-block; the spaces between words stay
+    // as animated (inline, breakable) children so the stagger timing is the
+    // same as when every character was a direct child.
+    const words = text.split(' ').reduce<{ word: string; start: number }[]>((acc, word) => {
+        const prev = acc[acc.length - 1];
+        // +1 for the space that follows each word
+        return [...acc, { word, start: prev ? prev.start + prev.word.length + 1 : 0 }];
+    }, []);
+
     return (
         <Component
             variants={containerVariants}
@@ -54,14 +64,25 @@ export const RevealLine = ({ text, delay, className, as = 'div' }: RevealLinePro
             custom={delay} // Passing delay as a custom prop to variants
             className={className}
         >
-            {text.split('').map((char, index) => (
-                <m.span
-                    key={`${char}-${index}`}
-                    variants={childVariants}
-                    style={{ display: 'inline-block', whiteSpace: 'pre' }}
-                >
-                    {char}
-                </m.span>
+            {words.map(({ word, start }, wordIndex) => (
+                <span key={start}>
+                    <span style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+                        {word.split('').map((char, i) => (
+                            <m.span
+                                key={`${char}-${start + i}`}
+                                variants={childVariants}
+                                style={{ display: 'inline-block', whiteSpace: 'pre' }}
+                            >
+                                {char}
+                            </m.span>
+                        ))}
+                    </span>
+                    {wordIndex < words.length - 1 && (
+                        <m.span variants={childVariants} style={{ display: 'inline' }}>
+                            {' '}
+                        </m.span>
+                    )}
+                </span>
             ))}
         </Component>
     );

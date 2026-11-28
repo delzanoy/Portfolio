@@ -1,6 +1,6 @@
 'use client';
 
-import { m, useScroll, useTransform, useSpring } from 'framer-motion';
+import { m, useScroll, useTransform, useSpring, type MotionValue } from 'framer-motion';
 import { useState, useEffect, useSyncExternalStore } from 'react';
 import { RevealLine } from './TextReveal';
 import Button from './Button';
@@ -32,48 +32,88 @@ function EmailCopyButton() {
 /* ----------------------------------------
    Media Query Hook
 ---------------------------------------- */
-function useIsDesktop() {
-    const [isDesktop, setIsDesktop] = useState(false);
+const DESKTOP_QUERY = '(min-width: 900px)';
+const subscribeDesktop = (onChange: () => void) => {
+    const media = window.matchMedia(DESKTOP_QUERY);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+};
+
+/**
+ * Read before the first paint, so a desktop never draws the phone layout (name
+ * top-left) for a frame. null on the server and while hydrating.
+ */
+function useIsDesktop(): boolean | null {
+    return useSyncExternalStore(
+        subscribeDesktop,
+        () => window.matchMedia(DESKTOP_QUERY).matches,
+        () => null
+    );
+}
+
+/* ----------------------------------------
+   End-of-page reveal
+   true once the footer's top is in the upper half of the screen (onFooter), else
+   past 90% of the page's scroll
+---------------------------------------- */
+function useAtBottom(scrollYProgress: MotionValue<number>, onFooter: boolean) {
+    const [atBottom, setAtBottom] = useState(false);
 
     useEffect(() => {
-        const media = window.matchMedia('(min-width: 900px)');
-        const update = () => setIsDesktop(media.matches);
+        const footer = onFooter ? document.querySelector('[data-site-footer]') : null;
+        if (!footer) return scrollYProgress.on('change', (latest) => setAtBottom(latest > 0.9));
 
-        update();
-        media.addEventListener('change', update);
-        return () => media.removeEventListener('change', update);
-    }, []);
+        const observer = new IntersectionObserver(
+            ([entry]) => setAtBottom(entry.isIntersecting),
+            // Only the top half of the screen counts
+            { rootMargin: '0px 0px -50% 0px' }
+        );
+        observer.observe(footer);
+        return () => observer.disconnect();
+    }, [scrollYProgress, onFooter]);
 
-    return isDesktop;
+    return atBottom;
+}
+
+interface LayoutProps {
+    storyFirst: boolean;
+    revealOnFooter: boolean;
 }
 
 /* ----------------------------------------
    Main Export
 ---------------------------------------- */
-const noopSubscribe = () => () => { };
+/**
+ * storyFirst: the page opens on the closing statement, so the pinned name
+ * and the contact button wait for it (desktop: name after the story;
+ * phone: the name is at the top, so only the button waits).
+ */
+// Follow the story's timing (SetbackLines' write intro, then the turn and the ask)
+const STORY_NAME_DELAY = 7.2; // s, desktop name as the ask settles
+const STORY_CTA_DELAY = 8.0; // s, Book a call last
 
-export default function AboutMe() {
+/**
+ * revealOnFooter: the links and the Email/Telegram buttons come up once the page's
+ * footer ([data-site-footer]) is reached, instead of at 90% of the scroll.
+ */
+export default function AboutMe({ storyFirst = false, revealOnFooter = false }: { storyFirst?: boolean; revealOnFooter?: boolean }) {
     const isDesktop = useIsDesktop();
-    // false during server render/hydration, true on the client
-    const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
-    if (!mounted) return null;
+    // Nothing until the screen size is known (server render and hydration)
+    if (isDesktop === null) return null;
 
-    return isDesktop ? <DesktopAboutMe /> : <MobileAboutMe />;
+    return isDesktop
+        ? <DesktopAboutMe storyFirst={storyFirst} revealOnFooter={revealOnFooter} />
+        : <MobileAboutMe storyFirst={storyFirst} revealOnFooter={revealOnFooter} />;
 }
 
 /* ----------------------------------------
    DESKTOP LAYOUT (UNCHANGED)
 ---------------------------------------- */
-function DesktopAboutMe() {
+function DesktopAboutMe({ storyFirst, revealOnFooter }: LayoutProps) {
+    const nameAt = storyFirst ? STORY_NAME_DELAY : 0;
     const { scrollY, scrollYProgress } = useScroll();
-    const [atBottom, setAtBottom] = useState(false);
-
-    useEffect(() => {
-        return scrollYProgress.on('change', (latest) => {
-            setAtBottom(latest > 0.9);
-        });
-    }, [scrollYProgress]);
+    const atBottom = useAtBottom(scrollYProgress, revealOnFooter);
 
     // Left Parallax
     const yTransform = useTransform(scrollY, [0, 500], ['0%', '50%']);
@@ -115,13 +155,13 @@ function DesktopAboutMe() {
                     <div className="flex flex-col">
                         <RevealLine
                             text="Delanoy"
-                            delay={0}
+                            delay={nameAt}
                             as="h1"
                             className="text-[38px] leading-[1em] tracking-[-0.04em] font-[var(--font-tasa)] font-bold text-white"
                         />
                         <RevealLine
                             text="Product Designer × Builder"
-                            delay={0.25}
+                            delay={nameAt + 0.25}
                             as="h2"
                             className="text-xl font-medium text-white font-[var(--font-tasa)]"
                         />
@@ -129,7 +169,7 @@ function DesktopAboutMe() {
                     <m.div style={{ opacity: line3Opacity, filter: line3Blur }}>
                         <RevealLine
                             text="Designing systems that help users win & businesses succeed."
-                            delay={0.5}
+                            delay={nameAt + 0.5}
                             className="text-md text-white font-[var(--font-instrument)] italic"
                         />
                     </m.div>
@@ -145,11 +185,9 @@ function DesktopAboutMe() {
                     hidden: { opacity: 0, y: 20 }
                 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="fixed bottom-12 left-1/2 -translate-x-1/2 z-100 flex gap-4 pointer-events-auto"
-                style={{
-                    pointerEvents: atBottom ? 'auto' : 'none',
-                    filter: 'drop-shadow(0px 8px 12px rgba(0,0,0,0.5))'
-                }}
+                // Difference blend, like the name: reads over any work behind it
+                className="fixed bottom-12 left-1/2 -translate-x-1/2 z-100 flex gap-4 pointer-events-auto mix-blend-difference"
+                style={{ pointerEvents: atBottom ? 'auto' : 'none' }}
             >
                 <a className="font-[var(--font-instrument)] text-white hover:opacity-70" href="https://www.linkedin.com/in/delanoykunil/" target="_blank" rel="noopener noreferrer">
                     LinkedIn
@@ -166,7 +204,7 @@ function DesktopAboutMe() {
                     animate={{ opacity: 1, filter: 'blur(0px)' }}
                     layout
                     transition={{
-                        delay: 1.2,
+                        delay: storyFirst ? STORY_CTA_DELAY : 1.2,
                         duration: 0.8,
                         layout: { type: 'spring', stiffness: 200, damping: 25 }
                     }}
@@ -198,7 +236,7 @@ function DesktopAboutMe() {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            <Button variant="outline">Telegram</Button>
+                            <Button variant="secondary">Telegram</Button>
                         </a>
                     </m.div>
                 </m.div>
@@ -210,15 +248,9 @@ function DesktopAboutMe() {
 /* ----------------------------------------
    MOBILE LAYOUT
 ---------------------------------------- */
-function MobileAboutMe() {
+function MobileAboutMe({ storyFirst, revealOnFooter }: LayoutProps) {
     const { scrollY, scrollYProgress } = useScroll();
-    const [atBottom, setAtBottom] = useState(false);
-
-    useEffect(() => {
-        return scrollYProgress.on('change', (latest) => {
-            setAtBottom(latest > 0.9);
-        });
-    }, [scrollYProgress]);
+    const atBottom = useAtBottom(scrollYProgress, revealOnFooter);
 
     const line3Opacity = useTransform(scrollY, [0, 150], [1, 0]);
     const line3Blur = useTransform(scrollY, [0, 150], ['blur(0px)', 'blur(10px)']);
@@ -283,7 +315,8 @@ function MobileAboutMe() {
                     hidden: { opacity: 0, y: 20 }
                 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="flex flex-col fixed bottom-12 left-5 z-100 gap-4"
+                // Difference blend, like the name: reads over any work behind it
+                className="flex flex-col fixed bottom-12 left-5 z-100 gap-4 mix-blend-difference"
                 style={{ pointerEvents: atBottom ? 'auto' : 'none' }}
             >
                 <a className="font-[var(--font-instrument)] text-white hover:opacity-70" href="https://www.linkedin.com/in/delanoykunil/" target="_blank" rel="noopener noreferrer">
@@ -301,7 +334,7 @@ function MobileAboutMe() {
                     animate={{ opacity: 1, filter: 'blur(0px)' }}
                     layout
                     transition={{
-                        delay: 1.2,
+                        delay: storyFirst ? STORY_CTA_DELAY : 1.2,
                         duration: 0.8,
                         layout: { type: 'spring', stiffness: 200, damping: 25 }
                     }}
@@ -334,7 +367,7 @@ function MobileAboutMe() {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            <Button variant="outline">Telegram</Button>
+                            <Button variant="secondary">Telegram</Button>
                         </a>
                     </m.div>
                 </m.div>
