@@ -46,9 +46,54 @@ export function preloadEmojis(set: EmojiSet, emojis: string[]) {
     }
 }
 
-function NotoEmoji({ emoji, loop, replayKey }: { emoji: string; loop: boolean; replayKey?: number }) {
+/**
+ * Resolves once the given emojis can be drawn without a late pop-in
+ * (Noto: Lottie player and files loaded), or after `timeoutMs`, whichever is first.
+ */
+export function whenEmojisReady(set: EmojiSet, emojis: string[], timeoutMs: number): Promise<void> {
+    if (set !== 'noto') return Promise.resolve();
+    const ready = Promise.all([import('lottie-web/build/player/lottie_light'), ...emojis.map(loadNoto)]).then(
+        () => undefined,
+        () => undefined
+    );
+    return Promise.race([ready, new Promise<void>((r) => setTimeout(r, timeoutMs))]);
+}
+
+/** The parts of a Lottie animation callers can drive (e.g. to step it frame by frame) */
+export interface NotoAnim {
+    goToAndStop: (value: number, isFrame?: boolean) => void;
+    totalFrames: number;
+}
+type Segments = [number, number][];
+
+function NotoEmoji({
+    emoji,
+    loop,
+    replayKey,
+    autoplay = true,
+    onAnim,
+    replaySegments,
+}: {
+    emoji: string;
+    loop: boolean;
+    replayKey?: number;
+    autoplay?: boolean;
+    onAnim?: (anim: NotoAnim | null) => void;
+    replaySegments?: Segments;
+}) {
     const ref = useRef<HTMLSpanElement>(null);
-    const anim = useRef<{ goToAndPlay: (v: number, f: boolean) => void; destroy: () => void } | null>(null);
+    const anim = useRef<
+        | (NotoAnim & {
+              goToAndPlay: (v: number, f: boolean) => void;
+              playSegments: (segments: Segments, force: boolean) => void;
+              destroy: () => void;
+          })
+        | null
+    >(null);
+    const onAnimRef = useRef(onAnim);
+    useEffect(() => {
+        onAnimRef.current = onAnim;
+    });
 
     useEffect(() => {
         let cancelled = false;
@@ -58,20 +103,28 @@ function NotoEmoji({ emoji, loop, replayKey }: { emoji: string; loop: boolean; r
                 container: ref.current,
                 renderer: 'svg',
                 loop,
-                autoplay: true,
+                autoplay,
                 animationData: structuredClone(data), // lottie mutates its input; keep the cached copy clean
             });
+            onAnimRef.current?.(anim.current);
         });
         return () => {
             cancelled = true;
+            onAnimRef.current?.(null);
             anim.current?.destroy();
             anim.current = null;
         };
-    }, [emoji, loop]);
+    }, [emoji, loop, autoplay]);
 
-    // Replay from the start when asked (e.g. on hover)
+    // Replay when asked (e.g. on hover): from the start, or the given frame ranges
+    const segmentsRef = useRef(replaySegments);
     useEffect(() => {
-        if (replayKey) anim.current?.goToAndPlay(0, true);
+        segmentsRef.current = replaySegments;
+    });
+    useEffect(() => {
+        if (!replayKey || !anim.current) return;
+        if (segmentsRef.current) anim.current.playSegments(segmentsRef.current, true);
+        else anim.current.goToAndPlay(0, true);
     }, [replayKey]);
 
     // Noto's artwork has padding built in, so it's drawn larger than the text
@@ -93,6 +146,9 @@ export default function EmojiGlyph({
     set,
     loop = true,
     replayKey,
+    autoplay = true,
+    onAnim,
+    replaySegments,
 }: {
     emoji: string;
     set: EmojiSet;
@@ -100,6 +156,12 @@ export default function EmojiGlyph({
     loop?: boolean;
     /** Noto only: change this number to replay the animation */
     replayKey?: number;
+    /** Noto only: false holds the first frame until replayKey changes */
+    autoplay?: boolean;
+    /** Noto only: receives the Lottie animation once loaded (null when it goes), to drive it directly */
+    onAnim?: (anim: NotoAnim | null) => void;
+    /** Noto only: the frame ranges a replay plays, instead of the whole animation */
+    replaySegments?: Segments;
 }) {
     if (set === 'fluent') {
         return (
@@ -113,6 +175,16 @@ export default function EmojiGlyph({
             />
         );
     }
-    if (set === 'noto') return <NotoEmoji emoji={emoji} loop={loop} replayKey={replayKey} />;
+    if (set === 'noto')
+        return (
+            <NotoEmoji
+                emoji={emoji}
+                loop={loop}
+                replayKey={replayKey}
+                autoplay={autoplay}
+                onAnim={onAnim}
+                replaySegments={replaySegments}
+            />
+        );
     return <>{emoji}</>;
 }
